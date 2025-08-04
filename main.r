@@ -61,3 +61,4 @@ ggplot(good_bad_wines, aes(x = value, color = group)) +
   labs(title = "Sample distribution", x = "Value", y = "ECDF") +
   coord_cartesian(xlim = c(1, 7), ylim = c(0.2, 0.8)) + 
   theme_minimal()
+
