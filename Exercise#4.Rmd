@@ -13,16 +13,17 @@ library(broom)
 library(gridExtra)
 ```
 
-### Load Data
+### Load and Prepare Data
 
 ```{r load-data}
+# Load dataset
 data <- read.csv("data/House prices.csv")
 
-# Select relevant variables
+# Select relevant variables for modeling
 data <- data %>% 
   select(price, bedrooms, bathrooms, sqft_living, floors, view, condition, grade, yr_built)
 
-# Remove missing values if any
+# Remove missing values to avoid model errors
 data <- na.omit(data)
 ```
 
@@ -33,10 +34,11 @@ data <- na.omit(data)
 2.  First, the Residuals vs Fitted and Scale-Location plots show a clear pattern where the spread of the residuals increases with the fitted values. This indicates heteroscedasticity, meaning the variance of the errors is not constant across all levels of the predicted values, therefore, a violation of one of the key linear regression assumptions. Second, the Q-Q plot suggests that the residuals are not normally distributed, particularly in the tails, which could affect the reliability of confidence intervals and hypothesis tests. Lastly, the Residuals vs Leverage plot shows a few observations with unusually high leverage and influence, suggesting that these outliers may be distorting the results of the model.
 
 ```{r lm-original}
+# Fit linear regression using original price
 lm1 <- lm(price ~ ., data = data)
-summary(lm1)
+summary(lm1)  # Output model summary
 
-# Residual analysis
+# Check regression assumptions via residual plots
 par(mfrow = c(2, 2))
 plot(lm1)
 ```
@@ -46,19 +48,34 @@ plot(lm1)
 2)  The transformation improved the distribution of residuals and helped stabilize the variance. The histogram and Q-Q plot of log(price) indicate a distribution much closer to normality compared to the original price variable, which was strongly right-skewed. Additionally, the residual diagnostic plots for the log-transformed model show less heteroscedasticity and more symmetrical residuals. The R-squared of the log-transformed model (0.6426) is slightly higher than the original model (0.6359), indicating a improvement in explanatory power. Furthermore, all variables remain statistically significant, suggesting that the transformation improves model. Overall, the model using log(price) provides a better fit and satisfies the assumptions of linear regression more effectively than the original model.
 
 ```{r lm-log-price}
-# Distribution of original and log-transformed price
-p1 <- ggplot(data, aes(x = price)) + geom_histogram(bins = 50, fill = "steelblue") + ggtitle("Histogram of Price")
-p2 <- ggplot(data, aes(sample = price)) + stat_qq() + stat_qq_line() + ggtitle("QQ-Plot of Price")
-p3 <- ggplot(data, aes(x = log(price))) + geom_histogram(bins = 50, fill = "darkgreen") + ggtitle("Histogram of log(Price)")
-p4 <- ggplot(data, aes(sample = log(price))) + stat_qq() + stat_qq_line() + ggtitle("QQ-Plot of log(Price)")
+# Visualize distribution of original and log-transformed price
+p1 <- ggplot(data, aes(x = price)) + 
+  geom_histogram(bins = 50, fill = "steelblue") + 
+  ggtitle("Histogram of Price")
+
+p2 <- ggplot(data, aes(sample = price)) + 
+  stat_qq() + stat_qq_line() + 
+  ggtitle("QQ-Plot of Price")
+
+p3 <- ggplot(data, aes(x = log(price))) + 
+  geom_histogram(bins = 50, fill = "darkgreen") + 
+  ggtitle("Histogram of log(Price)")
+
+p4 <- ggplot(data, aes(sample = log(price))) + 
+  stat_qq() + stat_qq_line() + 
+  ggtitle("QQ-Plot of log(Price)")
+
+# Arrange plots in grid layout
 grid.arrange(p1, p2, p3, p4, ncol = 2)
 
-# Fit model with log(price)
+# Add log-transformed price to dataset
 data$log_price <- log(data$price)
+
+# Fit linear model using log(price)
 lm2 <- lm(log_price ~ bedrooms + bathrooms + sqft_living + floors + view + condition + grade + yr_built, data = data)
 summary(lm2)
 
-# Residual plots
+# Diagnostic plots
 par(mfrow = c(2, 2))
 plot(lm2)
 ```
@@ -68,37 +85,40 @@ plot(lm2)
 1.  Both squared terms are highly statistically significant (p \< 2e-16), suggesting that the relationship between house price and these predictors is not only linear. The inclusion of these variables leads to a increase in model fit, with the R-squared improving from 0.6426 to 0.6492.
 
 ```{r lm-squared}
+# Create squared terms to capture non-linear effects
 data$sq_yr_built <- data$yr_built^2
 data$sq_sqft_living <- data$sqft_living^2
+
+# Fit model with squared terms
 lm3 <- lm(log_price ~ bedrooms + bathrooms + sqft_living + floors + view + condition + grade + yr_built + sq_yr_built + sq_sqft_living, data = data)
 summary(lm3)
 
-# Residual plots
+# Plot residuals to assess model fit
 par(mfrow = c(2, 2))
 plot(lm3)
 ```
 
 ### (d) Train-Test Split and Prediction
+
 ```{r train-test}
-# Set seed for reproducibility
+# Reproducibility of random sampling
 set.seed(1122)
 
-# Split the dataset into training and testing sets
-train_index <- sample(1:nrow(data), 10806)  # Randomly select 10,806 rows for training
-train <- data[train_index, ]                # Training data
-test <- data[-train_index, ]                # Testing data (remaining rows)
+# Create training and testing indices (80-20 split)
+train_index <- sample(1:nrow(data), 10806)
+train <- data[train_index, ]
+test <- data[-train_index, ]
 
-# Model from part (b): linear regression with basic predictors
+# Model from (b): basic predictors
 model_b <- lm(log_price ~ bedrooms + bathrooms + sqft_living + floors + view + condition + grade + yr_built, data = train)
-pred_b <- predict(model_b, newdata = test)                       # Predict log_price on test data
-mse_b <- mean((pred_b - test$log_price)^2)                      # Compute mean squared error for model_b
+pred_b <- predict(model_b, newdata = test)
+mse_b <- mean((pred_b - test$log_price)^2)  # Mean Squared Error
 
-# Model from part (c): extended model with additional squared features
+# Model from (c): extended with squared features
 model_c <- lm(log_price ~ bedrooms + bathrooms + sqft_living + floors + view + condition + grade + yr_built + sq_yr_built + sq_sqft_living, data = train)
-pred_c <- predict(model_c, newdata = test)                      # Predict log_price on test data
-mse_c <- mean((pred_c - test$log_price)^2)                      # Compute mean squared error for model_c
+pred_c <- predict(model_c, newdata = test)
+mse_c <- mean((pred_c - test$log_price)^2)  # Mean Squared Error
 
-# Output both MSE values to compare model performance
+# Output MSEs for comparison
 mse_b; mse_c
-
 ```

@@ -1,14 +1,7 @@
 ---
 title: "Exercise 5: Penalized Regression with Hitters Dataset"
 author: "Aldair Leon"
-date: "2025-08-04"
-output:
-  html_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
-    theme: united
-    highlight: tango
+date: "2025-08-10"
 ---
 
 ```{r setup, include=FALSE}
