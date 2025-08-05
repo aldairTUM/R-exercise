@@ -15,7 +15,9 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 
 # Load data
-wine <- read.csv("data/winequality-white.csv", sep = ";")
+source('scripts/abs_path.r', chdir = TRUE)
+abs_path_dataset <- path_data("winequality-white.csv")
+wine <- read.csv(abs_path_dataset, sep = ";")
 
 # Add binary variable "good" (1 if quality > 5)
 wine <- wine %>% mutate(good = ifelse(quality > 5, 1, 0))

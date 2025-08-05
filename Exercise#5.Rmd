@@ -20,7 +20,9 @@ library(glmnet)
 set.seed(1122)
 
 # Load Hitters dataset
-hitters <- read.csv("data/Hitters.csv", sep = " ")
+source('scripts/abs_path.r', chdir = TRUE)
+abs_path_dataset <- path_data("Hitters.csv")
+hitters <- read.csv(abs_path_dataset, sep = " ")
 
 # Remove rows with missing values
 hitters_clean <- hitters[complete.cases(hitters), ]
@@ -28,7 +30,7 @@ hitters_clean <- hitters[complete.cases(hitters), ]
 
 ## 5(b) Compute Condition Number of XtX
 
-1.  The condition number of the design matrix 𝑋⊤𝑋 was computed to assess multicollinearity in the Hitters dataset. Initially, the unstandardized matrix produced an high condition number of *424,299,885*, indicating severe multicollinearity and instability in the regression coefficients. To address this, the design matrix was standardized such that each predictor had mean zero. This transformation reduced the condition number to around 6,131, improving the conditioning of the matrix. This suggests that standardizing the predictors not only makes them comparable in scale but also enhances numerical stability and reliability of the regression estimates.
+1.  The condition number of the design matrix 𝑋⊤𝑋 was computed to assess multicollinearity in the Hitters data-set. Initially, the unstandardized matrix produced an high condition number of *424,299,885*, indicating severe multicollinearity and instability in the regression coefficients. To address this, the design matrix was standardized such that each predictor had mean zero. This transformation reduced the condition number to around 6,131, improving the conditioning of the matrix. This suggests that standardizing the predictors not only makes them comparable in scale but also enhances numerical stability and reliability of the regression estimates.
 
 ```{r}
 # Create design matrix X and response vector y

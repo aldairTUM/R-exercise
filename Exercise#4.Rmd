@@ -5,7 +5,6 @@ author: "Aldair Leon"
 ---
 
 ```{r setup, include=FALSE}
-install.packages("caret")
 library(tidyverse)
 library(ggplot2)
 library(caret)
@@ -17,7 +16,9 @@ library(gridExtra)
 
 ```{r load-data}
 # Load dataset
-data <- read.csv("data/House prices.csv")
+source('scripts/abs_path.r', chdir = TRUE)
+abs_path_dataset <- path_data("House prices.csv")
+data <- read.csv(abs_path_dataset)
 
 # Select relevant variables for modeling
 data <- data %>% 
