@@ -1,7 +1,7 @@
 ---
 title: "Exercise 2: Distribution Analysis of pH in White Wine"
 author: "Aldair Leon"
-date: "2025-08-04"
+date: "2025-08-05"
 output:
   html_document:
     toc: true
@@ -16,6 +16,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## 2(a) Histogram with Normal Density
+
+1)  The histograms show how pH levels are distributed in all wines, as well as for good and bad wines. Overall, most wines have a pH around 3.2, and the shape of the histogram looks close to a normal curve. When looking at the two groups separately, good wines tend to have pH values that are more clustered around the average, showing a more consistent acidity level. In contrast, bad wines show their pH values vary more.
 
 ```{r}
 library(tidyverse)
@@ -46,15 +48,18 @@ plot_hist_with_density(wine$pH[wine$good == 0], "Histogram of pH (Bad Wines)")
 
 ## 2(b) QQ-Plots and PP-Plots
 
+2)  To check if the pH values follow a normal distribution, we looked at Q-Q and P-P plots for all wines, as well as for good and bad wines separately. The results show that pH values in all wines are approximately normally distributed, as the points in both plots (Q-Q and P-P plots) closely follow the diagonal line. When we analyze the data separately, we see that good wines fit the normal distribution better than bad wines, with only small deviations at the ends. Bad wines, however, show more variation, particularly at higher pH levels, suggesting that their distribution is a less normal.
+
 ```{r}
-qqnorm(wine$pH); qqline(wine$pH, col = "red", lwd = 2)
-title("QQ Plot: All Wines")
+qqnorm(wine$pH, main = "") 
+qqline(wine$pH, col = "red", lwd = 2)
+title("Q-Q Plot of pH Values in All Wine")
 
-qqnorm(wine$pH[wine$good == 1]); qqline(wine$pH[wine$good == 1], col = "blue")
-title("QQ Plot: Good Wines")
+qqnorm(wine$pH[wine$good == 1], main=""); qqline(wine$pH[wine$good == 1], col = "red")
+title("Q-Q Plot of pH Values in Good Wine")
 
-qqnorm(wine$pH[wine$good == 0]); qqline(wine$pH[wine$good == 0], col = "green")
-title("QQ Plot: Bad Wines")
+qqnorm(wine$pH[wine$good == 0], main=""); qqline(wine$pH[wine$good == 0], col = "red")
+title("Q-Q Plot of pH Values in Bad Wine")
 
 # PP Plot function
 pp_plot <- function(x, group) {
@@ -69,20 +74,44 @@ pp_plot(wine$pH[wine$good == 1], "Good Wines")
 pp_plot(wine$pH[wine$good == 0], "Bad Wines")
 ```
 
-## 2(c) ECDFs with Pointwise Confidence Bands (CLT + Slutzky)
+## 2(c) ECDFs with Pointwise Confidence Bands.
+
+3)  These plot give us an idea of how much uncertainty there is around the ECDF estimates.We can see that the ECDF for good wines (blue line) tends to be shifted to the left compared to bad wines (green line), especially in the middle pH range. This suggests that good wines generally have lower pH values than bad wines. The shaded areas around each line represent the confidence bands, showing the range where we expect the true ECDF to lie with 95% confidence.
 
 ```{r}
+# Set significance level (for 95% confidence interval)
 alpha <- 0.05
+
+# Define a function to compute the ECDF and CLT-based pointwise confidence bands
 ecdf_with_clt_band <- function(x, label, n_grid = 400) {
+  
+  # Sample size
   n <- length(x)
+  
+  # Empirical cumulative distribution function (ECDF)
   Fn <- ecdf(x)
+  
+  # Create a grid of values across the range of the data (used to evaluate ECDF smoothly)
   grid <- seq(min(x), max(x), length.out = n_grid)
+  
+  # Calculate the z-value for the desired confidence level (e.g., 1.96 for 95%)
   z_alpha <- qnorm(1 - alpha/2)
+  
+  # Calculate the margin of error (epsilon) based on the Central Limit Theorem
   eps <- z_alpha / sqrt(n)
+  
+  # Evaluate the ECDF on the grid
   fhat <- Fn(grid)
-  tibble(group = label, x = grid, Fn = fhat,
-         lower = pmax(0, fhat - eps), upper = pmin(1, fhat + eps))
-}
+  
+  # Return a tibble with the ECDF values and upper/lower bounds of the confidence band
+  # Values are clipped to [0, 1] to ensure valid probabilities
+  tibble(
+    group = label,    # Label for group (e.g., "Good", "Bad")
+    x = grid,         # Grid values (x-axis)
+    Fn = fhat,        # ECDF values at grid points
+    lower = pmax(0, fhat - eps),  # Lower confidence band (not below 0)
+    upper = pmin(1, fhat + eps)   # Upper confidence band (not above 1)
+  )}
 
 all_df <- ecdf_with_clt_band(wine$pH, "All")
 good_df <- ecdf_with_clt_band(wine$pH[wine$good == 1], "Good")
@@ -98,21 +127,33 @@ bind_rows(all_df, good_df, bad_df) %>%
 
 ## 2(d) ECDFs with Uniform DK-W Confidence Bands
 
+4)  The DKW bands are slightly wider than the CLT bands, especially in the tails, because they guarantee confidence simultaneously at all points rather than just point by point. Despite this, both plots reveal similar distribution shapes, with good wines generally having slightly higher pH values than bad wines
+
 ```{r}
 ecdf_dkw_df <- function(x, label, alpha = 0.05, n_grid = 400) {
+  # Sample size
   n <- length(x)
+  
+  # Empirical cumulative distribution function (ECDF)
   Fn <- ecdf(x)
+  
+  # Create a sequence of points (grid) over the data range to evaluate the ECDF
   grid <- seq(min(x), max(x), length.out = n_grid)
   
-  eps <- sqrt(log(2 / alpha) / (2 * n))  # DKW epsilon
+  # Calculate epsilon (margin of error) using the DKW inequality
+  # This gives a uniform confidence band (valid for all x values at once)
+  eps <- sqrt(log(2 / alpha) / (2 * n))  # 1 - alpha confidence level
+  
+  # Evaluate ECDF on the grid
   fhat <- Fn(grid)
   
+  # Return a tibble containing the ECDF values and uniform confidence bands
   tibble(
-    group = label,
-    x = grid,
-    Fn = fhat,
-    lower = pmax(0, fhat - eps),
-    upper = pmin(1, fhat + eps)
+    group = label,                   # Label for identifying the group (e.g., "Good", "Bad")
+    x = grid,                        # x-axis values (grid)
+    Fn = fhat,                       # ECDF values
+    lower = pmax(0, fhat - eps),     # Lower band, not less than 0
+    upper = pmin(1, fhat + eps)      # Upper band, not more than 1
   )
 }
 
@@ -129,6 +170,8 @@ bind_rows(all_dkw, good_dkw, bad_dkw) %>%
 ```
 
 ## 2(e) ECDF of Good vs Bad Wines with Uniform Bands
+
+5)  The pH distribution for good and bad wines differs significantly. Good wines generally have higher pH values, and this difference is statistically supported by the non-overlapping parts of their uniform confidence bands.
 
 ```{r}
 bind_rows(good_dkw, bad_dkw) %>%
