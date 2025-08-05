@@ -1,131 +1,162 @@
 ---
 title: "Exercise 5: Penalized Regression with Hitters Dataset"
 author: "Aldair Leon"
-date: "2025-08-10"
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
+# Configure knitr to show R code in output
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## 5(a) Load and Clean the Dataset
 
 ```{r}
+# Load required libraries
 library(tidyverse)
 library(glmnet)
 
-# Set seed for reproducibility
+# Ensure reproducibility
 set.seed(1122)
 
-# Load dataset
+# Load Hitters dataset
 hitters <- read.csv("data/Hitters.csv", sep = " ")
 
-# Keep complete cases only
+# Remove rows with missing values
 hitters_clean <- hitters[complete.cases(hitters), ]
 ```
 
 ## 5(b) Compute Condition Number of XtX
 
+1.  The condition number of the design matrix 𝑋⊤𝑋 was computed to assess multicollinearity in the Hitters dataset. Initially, the unstandardized matrix produced an high condition number of *424,299,885*, indicating severe multicollinearity and instability in the regression coefficients. To address this, the design matrix was standardized such that each predictor had mean zero. This transformation reduced the condition number to around 6,131, improving the conditioning of the matrix. This suggests that standardizing the predictors not only makes them comparable in scale but also enhances numerical stability and reliability of the regression estimates.
+
 ```{r}
-# Design matrix and response
-X <- model.matrix(Salary ~ ., hitters_clean)[, -1]  # Drop intercept
+# Create design matrix X and response vector y
+X <- model.matrix(Salary ~ ., hitters_clean)[, -1]  # Remove intercept column
 y <- hitters_clean$Salary
 
-# XtX and condition number
+# Compute XtX matrix and condition number
 XtX <- t(X) %*% X
+
+# Eigenvalue decomposition to get condition number
 eigenvalues <- eigen(XtX)$values
 condition_number <- max(eigenvalues) / min(eigenvalues)
 
-# Standardize X
+# Standardize X to improve conditioning
 X_scaled <- scale(X)
 XtX_scaled <- t(X_scaled) %*% X_scaled
+
 eigen_scaled <- eigen(XtX_scaled)$values
 condition_scaled <- max(eigen_scaled) / min(eigen_scaled)
 
+# Return both condition numbers
 condition_number
 condition_scaled
 ```
 
-## 5(c) Linear Model vs Ridge with λ = 70
+## 5(c) Compare OLS vs Ridge Regression (λ = 70)
+
+2.  When comparing the coefficient estimates from the ordinary least squares (OLS) model and the ridge regression model (with λ = 70), the OLS model produces coefficients that vary, with some being large in both the positive and negative values. This reflects OLS's sensitivity to multicollinearity, which can lead to unstable estimates and overfitting. In contrast, the coefficients from the ridge regression model are smaller and more evenly distributed. Ridge regression effectively pulls the coefficients closer to zero. This helps to reduce variance and makes the model more stable, especially when dealing with highly correlated predictors. As a result, ridge regression tends to generalize better to new data by avoiding the extreme in coefficient values that we often see with OLS.
 
 ```{r}
-# Linear model
+# Fit ordinary least squares regression
 lm_fit <- lm(Salary ~ ., data = hitters_clean)
 
-# Ridge regression
+# Fit Ridge regression with fixed lambda
 ridge_fit <- glmnet(X_scaled, y, alpha = 0, lambda = 70)
 
-# Compare coefficients
-coef_lm <- coef(lm_fit)[-1]  # Drop intercept
+# Extract coefficients (excluding intercepts)
+coef_lm <- coef(lm_fit)[-1]
 coef_ridge <- as.vector(coef(ridge_fit))[-1]
 
-comparison <- tibble(
+# Combine for comparison
+df_compare <- tibble(
   Variable = colnames(X),
   LM_Coeff = coef_lm,
   Ridge_Coeff = coef_ridge
 )
 
-comparison
+# Show side-by-side coefficients
+df_compare
 ```
 
-## 5(d) Train/Test Split
+## 5(d) Train-Test Split
 
 ```{r}
+# Determine training set size (70%)
 n <- nrow(hitters_clean)
 train_idx <- sample(1:n, size = floor(0.7 * n))
+
+# Split scaled X and y into train/test
 X_train <- X_scaled[train_idx, ]
 y_train <- y[train_idx]
 X_test <- X_scaled[-train_idx, ]
 y_test <- y[-train_idx]
 ```
 
-## 5(e) MSE vs Lambda for Ridge
+## 5(e) Ridge: MSE vs Lambda
 
 ```{r}
+# Function to compute Ridge test MSE for a given lambda
 ridge_mse <- function(lambda) {
   fit <- glmnet(X_train, y_train, alpha = 0, lambda = lambda)
   preds <- predict(fit, newx = X_test)
   mean((y_test - preds)^2)
 }
 
+# Generate lambda grid and compute MSE
 lambda_grid <- 10^seq(10, -2, length.out = 100)
 mse_values <- sapply(lambda_grid, ridge_mse)
 
+# Plot MSE vs log(lambda)
 plot(log(lambda_grid), mse_values, type = "l", col = "blue",
      xlab = "log(Lambda)", ylab = "Test MSE", main = "Ridge: MSE vs Lambda")
 
+# Select lambda with minimum MSE
 lambda_opt <- lambda_grid[which.min(mse_values)]
 lambda_opt
 ```
 
 ## 5(f) Final Ridge Model Coefficients
 
+3.  19 predictor variables were retained, each with a non-zero coefficient. This outcome is expected with ridge regression, as its L2 penalty shrinks coefficients but doesn’t eliminate them entirely. The variables with the largest influence on predicted salary were CRBI, CRuns, CHits, CHmRun, and CAtBat. On the other hand, variables like Errors and NewLeagueN had relatively small coefficients, indicating they contribute less to the model's predictions.
+
 ```{r}
+# Fit Ridge model on full data using optimal lambda
 final_ridge <- glmnet(X_scaled, y, alpha = 0, lambda = lambda_opt)
+
+# Extract non-zero coefficients
 ridge_coefs <- coef(final_ridge)
-nonzero_ridge <- ridge_coefs[ridge_coefs != 0]
-nonzero_ridge
+ridge_coefs
 ```
 
 ## 5(g) Lasso Regression
 
+4.  Only Hits, CRuns, and CRBI were assigned non-zero coefficients, indicating they are the most important features for predicting salary. This sparsity is a result of the L1 penalty used in lasso regression, which enables automatic variable selection. As a result, lasso not only helps with regularization but also improves model interpretation by identifying the most relevant predictors and excluding less informative ones.
+
 ```{r}
+# Function to compute Lasso test MSE for a given lambda
 lasso_mse <- function(lambda) {
   fit <- glmnet(X_train, y_train, alpha = 1, lambda = lambda)
   preds <- predict(fit, newx = X_test)
   mean((y_test - preds)^2)
 }
 
+# Compute MSE across lambda grid for Lasso
 mse_lasso <- sapply(lambda_grid, lasso_mse)
 
+# Plot MSE vs log(lambda)
 plot(log(lambda_grid), mse_lasso, type = "l", col = "red",
      xlab = "log(Lambda)", ylab = "Test MSE", main = "Lasso: MSE vs Lambda")
 
+# Select optimal lambda for Lasso
 lambda_opt_lasso <- lambda_grid[which.min(mse_lasso)]
 lambda_opt_lasso
 
+# Fit Lasso model on full data using optimal lambda
 final_lasso <- glmnet(X_scaled, y, alpha = 1, lambda = lambda_opt_lasso)
+
+# Extract non-zero coefficients
 lasso_coefs <- coef(final_lasso)
-nonzero_lasso <- lasso_coefs[lasso_coefs != 0]
-nonzero_lasso
+lasso_coefs
 ```
