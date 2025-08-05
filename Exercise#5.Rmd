@@ -1,0 +1,138 @@
+---
+title: "Exercise 5: Penalized Regression with Hitters Dataset"
+author: "Aldair Leon"
+date: "2025-08-04"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    theme: united
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 5(a) Load and Clean the Dataset
+
+```{r}
+library(tidyverse)
+library(glmnet)
+
+# Set seed for reproducibility
+set.seed(1122)
+
+# Load dataset
+hitters <- read.csv("data/Hitters.csv", sep = " ")
+
+# Keep complete cases only
+hitters_clean <- hitters[complete.cases(hitters), ]
+```
+
+## 5(b) Compute Condition Number of XtX
+
+```{r}
+# Design matrix and response
+X <- model.matrix(Salary ~ ., hitters_clean)[, -1]  # Drop intercept
+y <- hitters_clean$Salary
+
+# XtX and condition number
+XtX <- t(X) %*% X
+eigenvalues <- eigen(XtX)$values
+condition_number <- max(eigenvalues) / min(eigenvalues)
+
+# Standardize X
+X_scaled <- scale(X)
+XtX_scaled <- t(X_scaled) %*% X_scaled
+eigen_scaled <- eigen(XtX_scaled)$values
+condition_scaled <- max(eigen_scaled) / min(eigen_scaled)
+
+condition_number
+condition_scaled
+```
+
+## 5(c) Linear Model vs Ridge with λ = 70
+
+```{r}
+# Linear model
+lm_fit <- lm(Salary ~ ., data = hitters_clean)
+
+# Ridge regression
+ridge_fit <- glmnet(X_scaled, y, alpha = 0, lambda = 70)
+
+# Compare coefficients
+coef_lm <- coef(lm_fit)[-1]  # Drop intercept
+coef_ridge <- as.vector(coef(ridge_fit))[-1]
+
+comparison <- tibble(
+  Variable = colnames(X),
+  LM_Coeff = coef_lm,
+  Ridge_Coeff = coef_ridge
+)
+
+comparison
+```
+
+## 5(d) Train/Test Split
+
+```{r}
+n <- nrow(hitters_clean)
+train_idx <- sample(1:n, size = floor(0.7 * n))
+X_train <- X_scaled[train_idx, ]
+y_train <- y[train_idx]
+X_test <- X_scaled[-train_idx, ]
+y_test <- y[-train_idx]
+```
+
+## 5(e) MSE vs Lambda for Ridge
+
+```{r}
+ridge_mse <- function(lambda) {
+  fit <- glmnet(X_train, y_train, alpha = 0, lambda = lambda)
+  preds <- predict(fit, newx = X_test)
+  mean((y_test - preds)^2)
+}
+
+lambda_grid <- 10^seq(10, -2, length.out = 100)
+mse_values <- sapply(lambda_grid, ridge_mse)
+
+plot(log(lambda_grid), mse_values, type = "l", col = "blue",
+     xlab = "log(Lambda)", ylab = "Test MSE", main = "Ridge: MSE vs Lambda")
+
+lambda_opt <- lambda_grid[which.min(mse_values)]
+lambda_opt
+```
+
+## 5(f) Final Ridge Model Coefficients
+
+```{r}
+final_ridge <- glmnet(X_scaled, y, alpha = 0, lambda = lambda_opt)
+ridge_coefs <- coef(final_ridge)
+nonzero_ridge <- ridge_coefs[ridge_coefs != 0]
+nonzero_ridge
+```
+
+## 5(g) Lasso Regression
+
+```{r}
+lasso_mse <- function(lambda) {
+  fit <- glmnet(X_train, y_train, alpha = 1, lambda = lambda)
+  preds <- predict(fit, newx = X_test)
+  mean((y_test - preds)^2)
+}
+
+mse_lasso <- sapply(lambda_grid, lasso_mse)
+
+plot(log(lambda_grid), mse_lasso, type = "l", col = "red",
+     xlab = "log(Lambda)", ylab = "Test MSE", main = "Lasso: MSE vs Lambda")
+
+lambda_opt_lasso <- lambda_grid[which.min(mse_lasso)]
+lambda_opt_lasso
+
+final_lasso <- glmnet(X_scaled, y, alpha = 1, lambda = lambda_opt_lasso)
+lasso_coefs <- coef(final_lasso)
+nonzero_lasso <- lasso_coefs[lasso_coefs != 0]
+nonzero_lasso
+```

@@ -1,0 +1,82 @@
+---
+title: "Exercise 6: Logistic Regression on Blood Donation Data"
+author: "Aldair Leon"
+date: "2025-08-04"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    theme: united
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 6(a) Load Dataset and Fit Models
+
+```{r}
+library(tidyverse)
+
+# Load dataset
+blood <- read.csv("data/Donors.csv", sep=",")
+
+# Check structure
+str(blood)
+names(blood)
+
+# Logistic regression models
+model_freq <- glm(donation ~ frequency, data = blood, family = binomial())
+model_amt  <- glm(donation ~ amount, data = blood, family = binomial())
+
+summary(model_freq)
+summary(model_amt)
+
+# Plot frequency vs amount
+ggplot(blood, aes(x = frequency, y = amount, color = factor(donation))) +
+  geom_point() +
+  theme_minimal() +
+  labs(title = "Frequency vs Amount Colored by Donation", color = "Donated")
+```
+
+## 6(b) Fit Model with `recency` and All Link Functions
+
+```{r}
+# Logit
+logit_model <- glm(donation ~ recency, data = blood, family = binomial(link = "logit"))
+
+# Probit
+probit_model <- glm(donation ~ recency, data = blood, family = binomial(link = "probit"))
+
+# Cloglog
+cloglog_model <- glm(donation ~ recency, data = blood, family = binomial(link = "cloglog"))
+
+summary(logit_model)
+summary(probit_model)
+summary(cloglog_model)
+```
+
+## 6(c) Classification and Evaluation
+
+```{r}
+# Split data
+set.seed(1122)
+train_idx <- sample(1:nrow(blood), 374)
+blood_train <- blood[train_idx, ]
+blood_test  <- blood[-train_idx, ]
+
+# Fit model on training set
+model_glm <- glm(donation ~ recency + frequency + amount + time, data = blood_train, family = binomial())
+
+# Predict probabilities
+pred_probs <- predict(model_glm, newdata = blood_test, type = "response")
+
+# Classification (threshold = 0.5)
+pred_labels <- ifelse(pred_probs >= 0.5, 1, 0)
+
+# Classification error
+ce <- mean(abs(blood_test$donation - pred_labels))
+ce
+```

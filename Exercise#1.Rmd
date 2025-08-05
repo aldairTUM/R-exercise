@@ -1,38 +1,170 @@
----
-title: "Exercise#1"
-author: "Aldair Lein"
+\---
+title: "Exercise 1: Sample Statistics for White Wine Data"
+author: "Aldair Leon"
 date: "2025-08-04"
-output: html_document
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    theme: united
+    highlight: tango
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-source('scripts/abs_path.r', chdir = TRUE)
-source('scripts/install_libraries.r', chdir = TRUE)
-
 ```
 
-## R Markdown
+## 1(a) Load Data and Create Binary Variable
 
-```{r read data}
-wine <- read.csv(path_data('winequality-white.csv'), sep=";")
-wine[] <- lapply(wine, as.numeric)
-wine$quality_binary <- ifelse(wine$quality > 5, 1, 0)
+```{r}
+library(tidyverse)
+
+# Load data
+wine <- read.csv("data/winequality-white.csv", sep = ";")
+
+# Add binary variable "good" (1 if quality > 5)
+wine <- wine %>% mutate(good = ifelse(quality > 5, 1, 0))
+
+table(wine$good)
 ```
 
-## Including Plots
+## 1(b) Analyze `residual.sugar`
 
-You can also embed plots, for example:
+### Histograms by Wine Quality
 
-```{r pressure, echo=FALSE}
-good_wines <- wine[wine$quality_binary == 1, ]
-bad_wines <- wine[wine$quality_binary == 0, ]
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
-
-```{r pressure, echo=FALSE}
+```{r}
 library(ggplot2)
-ggplot(good_wines, aes(x = residual.sugar)) + geom_histogram(binwidth = 1, fill = "skyblue", color = "black")
-ggplot(bad_wines, aes(x = residual.sugar)) + geom_histogram(binwidth = 1, fill = "lightcoral", color = "black")
+
+# Histogram using ggplot with different bin widths
+wine %>%
+  ggplot(aes(x = residual.sugar, fill = factor(good))) +
+  geom_histogram(position = "identity", alpha = 0.5, bins = 30) +
+  labs(title = "Residual Sugar by Wine Quality", x = "Residual Sugar", fill = "Good Wine") +
+  theme_minimal()
+```
+
+### Summary Statistics
+
+```{r}
+summary_stats <- wine %>%
+  group_by(good) %>%
+  summarise(
+    Mean = mean(residual.sugar),
+    Median = median(residual.sugar),
+    SD = sd(residual.sugar),
+    IQR = IQR(residual.sugar),
+    Min = min(residual.sugar),
+    Max = max(residual.sugar)
+  )
+
+summary_stats
+```
+
+### Boxplots
+
+```{r}
+ggplot(wine, aes(x = factor(good), y = residual.sugar, fill = factor(good))) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Residual Sugar", x = "Good Wine", y = "Residual Sugar") +
+  theme_minimal()
+```
+
+### QQ-Plot
+
+```{r}
+good_sugar <- wine$residual.sugar[wine$good == 1]
+bad_sugar <- wine$residual.sugar[wine$good == 0]
+
+qqplot(bad_sugar, good_sugar,
+       xlab = "Bad Wines Quantiles",
+       ylab = "Good Wines Quantiles",
+       main = "QQ Plot: Residual Sugar",
+       pch = 19)
+abline(0, 1, col = "red")
+```
+
+### ECDF Plot
+
+```{r}
+# ECDF function
+plot_ecdf <- function(x, group) {
+  tibble(value = x, group = group)
+}
+
+ecdf_data <- bind_rows(
+  plot_ecdf(good_sugar, "Good"),
+  plot_ecdf(bad_sugar, "Bad")
+)
+
+ggplot(ecdf_data, aes(x = value, color = group)) +
+  stat_ecdf(geom = "step", size = 1.2) +
+  labs(title = "ECDF of Residual Sugar", x = "Residual Sugar", y = "ECDF") +
+  theme_minimal()
+```
+
+## 1(c) Analyze `volatile.acidity`
+
+### Histograms
+
+```{r}
+wine %>%
+  ggplot(aes(x = volatile.acidity, fill = factor(good))) +
+  geom_histogram(position = "identity", alpha = 0.5, bins = 30) +
+  labs(title = "Volatile Acidity by Wine Quality", x = "Volatile Acidity", fill = "Good Wine") +
+  theme_minimal()
+```
+
+### Summary Statistics
+
+```{r}
+summary_volatile <- wine %>%
+  group_by(good) %>%
+  summarise(
+    Mean = mean(volatile.acidity),
+    Median = median(volatile.acidity),
+    SD = sd(volatile.acidity),
+    IQR = IQR(volatile.acidity),
+    Min = min(volatile.acidity),
+    Max = max(volatile.acidity)
+  )
+
+summary_volatile
+```
+
+### Boxplots
+
+```{r}
+ggplot(wine, aes(x = factor(good), y = volatile.acidity, fill = factor(good))) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Volatile Acidity", x = "Good Wine", y = "Volatile Acidity") +
+  theme_minimal()
+```
+
+### QQ-Plot
+
+```{r}
+good_acid <- wine$volatile.acidity[wine$good == 1]
+bad_acid <- wine$volatile.acidity[wine$good == 0]
+
+qqplot(bad_acid, good_acid,
+       xlab = "Bad Wines Quantiles",
+       ylab = "Good Wines Quantiles",
+       main = "QQ Plot: Volatile Acidity",
+       pch = 19)
+abline(0, 1, col = "red")
+```
+
+### ECDF Plot
+
+```{r}
+ecdf_volatile <- bind_rows(
+  plot_ecdf(good_acid, "Good"),
+  plot_ecdf(bad_acid, "Bad")
+)
+
+ggplot(ecdf_volatile, aes(x = value, color = group)) +
+  stat_ecdf(geom = "step", size = 1.2) +
+  labs(title = "ECDF of Volatile Acidity", x = "Volatile Acidity", y = "ECDF") +
+  theme_minimal()
 ```

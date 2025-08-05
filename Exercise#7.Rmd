@@ -1,0 +1,106 @@
+---
+title: "Exercise 7: Generalized Linear Models on Student Grades"
+author: "Aldair Leon"
+date: "2025-08-04"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    theme: united
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+```
+
+# 1. Load and Explore Dataset
+
+```{r}
+students <- read.csv("data/student-mat.csv", sep = ",")
+str(students)
+summary(students[, c("G1", "G2", "G3")])
+```
+
+# 2. Assess Distribution of G1, G2, G3
+
+```{r}
+# Histograms
+students %>%
+  pivot_longer(cols = c(G1, G2, G3), names_to = "Exam", values_to = "Grade") %>%
+  ggplot(aes(x = Grade)) +
+  geom_histogram(bins = 15, fill = "skyblue", color = "black") +
+  facet_wrap(~ Exam, scales = "free_y") +
+  theme_minimal()
+
+# QQ Plots
+par(mfrow = c(1, 3))
+lapply(c("G1", "G2", "G3"), function(g) {
+  qqnorm(students[[g]], main = paste("QQ Plot of", g))
+  qqline(students[[g]], col = "red")
+})
+par(mfrow = c(1,1))
+
+# Check Poisson assumption
+students %>%
+  pivot_longer(cols = c(G1, G2, G3), names_to = "Exam", values_to = "Grade") %>%
+  ggplot(aes(sample = Grade)) +
+  stat_qq(distribution = qpois, dparams = list(lambda = mean(students$G1)), color = "steelblue") +
+  facet_wrap(~ Exam) +
+  theme_minimal()
+```
+
+# 3. Fit Generalized Linear Model (Model 1)
+
+```{r}
+# Model 1: All covariates for G1
+glm_model1 <- glm(G1 ~ ., data = students, family = gaussian())
+summary(glm_model1)
+```
+
+# 4. Residual Diagnostics
+
+```{r}
+# Pearson and Anscombe residuals
+# Residual Diagnostics
+pearson_resid <- residuals(glm_model1, type = "pearson")
+deviance_resid <- residuals(glm_model1, type = "deviance")
+
+# Histograms
+par(mfrow = c(1, 2))
+hist(pearson_resid, main = "Pearson Residuals", col = "lightblue")
+hist(deviance_resid, main = "Deviance Residuals", col = "salmon")
+par(mfrow = c(1, 1))
+
+# Normality check
+qqnorm(pearson_resid)
+qqline(pearson_resid, col = "blue")
+
+```
+
+# 5. Reduced Model (Model 2) and Comparison
+
+```{r}
+# Model 2 with selected covariates
+glm_model2 <- glm(G1 ~ sex + Fedu + studytime + failures + schoolsup + famsup + goout, 
+                  data = students, family = gaussian())
+summary(glm_model2)
+
+# Analysis of deviance
+anova(glm_model2, glm_model1, test = "F")
+```
+
+# 6. Compare Model 2 vs Model 3 (Replace goout with Walc)
+
+```{r}
+# Model 3 with Walc instead of goout
+glm_model3 <- glm(G1 ~ sex + Fedu + studytime + failures + schoolsup + famsup + Walc, 
+                  data = students, family = gaussian())
+summary(glm_model3)
+
+# Compare AIC or adjusted R-squared
+AIC(glm_model2, glm_model3)
+```

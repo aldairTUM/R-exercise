@@ -1,0 +1,141 @@
+---
+title: "Exercise 2: Distribution Analysis of pH in White Wine"
+author: "Aldair Leon"
+date: "2025-08-04"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    theme: united
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 2(a) Histogram with Normal Density
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+
+# Load data
+wine <- read.csv("data/winequality-white.csv", sep = ";")
+wine <- wine %>% mutate(good = ifelse(quality > 5, 1, 0))
+
+# Helper: histogram with normal curve overlay
+plot_hist_with_density <- function(data, title) {
+  mu <- mean(data)
+  sigma <- sd(data)
+  ggplot(data.frame(x = data), aes(x)) +
+    geom_histogram(aes(y = ..density..), bins = 30, fill = "skyblue", alpha = 0.6) +
+    stat_function(fun = dnorm, args = list(mean = mu, sd = sigma), color = "red", size = 1) +
+    labs(title = title, x = "pH", y = "Density") +
+    theme_minimal()
+}
+
+# All wines
+plot_hist_with_density(wine$pH, "Histogram of pH (All Wines)")
+
+# Good and bad wines
+plot_hist_with_density(wine$pH[wine$good == 1], "Histogram of pH (Good Wines)")
+plot_hist_with_density(wine$pH[wine$good == 0], "Histogram of pH (Bad Wines)")
+```
+
+## 2(b) QQ-Plots and PP-Plots
+
+```{r}
+qqnorm(wine$pH); qqline(wine$pH, col = "red", lwd = 2)
+title("QQ Plot: All Wines")
+
+qqnorm(wine$pH[wine$good == 1]); qqline(wine$pH[wine$good == 1], col = "blue")
+title("QQ Plot: Good Wines")
+
+qqnorm(wine$pH[wine$good == 0]); qqline(wine$pH[wine$good == 0], col = "green")
+title("QQ Plot: Bad Wines")
+
+# PP Plot function
+pp_plot <- function(x, group) {
+  p <- pnorm(sort(x), mean = mean(x), sd = sd(x))
+  e <- ecdf(x)(sort(x))
+  plot(p, e, main = paste("PP-Plot:", group), xlab = "Theoretical CDF", ylab = "Empirical CDF")
+  abline(0, 1, col = "red")
+}
+
+pp_plot(wine$pH, "All Wines")
+pp_plot(wine$pH[wine$good == 1], "Good Wines")
+pp_plot(wine$pH[wine$good == 0], "Bad Wines")
+```
+
+## 2(c) ECDFs with Pointwise Confidence Bands (CLT + Slutzky)
+
+```{r}
+alpha <- 0.05
+ecdf_with_clt_band <- function(x, label, n_grid = 400) {
+  n <- length(x)
+  Fn <- ecdf(x)
+  grid <- seq(min(x), max(x), length.out = n_grid)
+  z_alpha <- qnorm(1 - alpha/2)
+  eps <- z_alpha / sqrt(n)
+  fhat <- Fn(grid)
+  tibble(group = label, x = grid, Fn = fhat,
+         lower = pmax(0, fhat - eps), upper = pmin(1, fhat + eps))
+}
+
+all_df <- ecdf_with_clt_band(wine$pH, "All")
+good_df <- ecdf_with_clt_band(wine$pH[wine$good == 1], "Good")
+bad_df <- ecdf_with_clt_band(wine$pH[wine$good == 0], "Bad")
+
+bind_rows(all_df, good_df, bad_df) %>%
+  ggplot(aes(x = x, y = Fn, color = group)) +
+  geom_step() +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = group), alpha = 0.2, color = NA) +
+  labs(title = "ECDF with Pointwise CLT Confidence Bands", x = "pH", y = "Fn(x)") +
+  theme_minimal()
+```
+
+## 2(d) ECDFs with Uniform DK-W Confidence Bands
+
+```{r}
+ecdf_dkw_df <- function(x, label, alpha = 0.05, n_grid = 400) {
+  n <- length(x)
+  Fn <- ecdf(x)
+  grid <- seq(min(x), max(x), length.out = n_grid)
+  
+  eps <- sqrt(log(2 / alpha) / (2 * n))  # DKW epsilon
+  fhat <- Fn(grid)
+  
+  tibble(
+    group = label,
+    x = grid,
+    Fn = fhat,
+    lower = pmax(0, fhat - eps),
+    upper = pmin(1, fhat + eps)
+  )
+}
+
+all_dkw <- ecdf_dkw_df(wine$pH, "All")
+good_dkw <- ecdf_dkw_df(wine$pH[wine$good == 1], "Good")
+bad_dkw <- ecdf_dkw_df(wine$pH[wine$good == 0], "Bad")
+
+bind_rows(all_dkw, good_dkw, bad_dkw) %>%
+  ggplot(aes(x = x, y = Fn, color = group)) +
+  geom_step() +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = group), alpha = 0.2, color = NA) +
+  labs(title = "ECDF with Uniform DKW Confidence Bands", x = "pH", y = "Fn(x)") +
+  theme_minimal()
+```
+
+## 2(e) ECDF of Good vs Bad Wines with Uniform Bands
+
+```{r}
+bind_rows(good_dkw, bad_dkw) %>%
+  ggplot(aes(x = x, y = Fn, color = group)) +
+  geom_step() +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = group), alpha = 0.25, color = NA) +
+  labs(title = "ECDF of pH for Good and Bad Wines (Uniform Bands)",
+       x = "pH", y = "Fn(x)") +
+  theme_minimal()
+```
