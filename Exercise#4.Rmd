@@ -1,0 +1,104 @@
+---
+title: "Linear Regression Analysis on House Prices"
+output: html_document
+author: "Aldair Leon"
+---
+
+```{r setup, include=FALSE}
+install.packages("caret")
+library(tidyverse)
+library(ggplot2)
+library(caret)
+library(broom)
+library(gridExtra)
+```
+
+### Load Data
+
+```{r load-data}
+data <- read.csv("data/House prices.csv")
+
+# Select relevant variables
+data <- data %>% 
+  select(price, bedrooms, bathrooms, sqft_living, floors, view, condition, grade, yr_built)
+
+# Remove missing values if any
+data <- na.omit(data)
+```
+
+### (a) Linear Regression Model with Original Price
+
+1.  The results of the linear regression model indicate that all the selected variables are statistically significant predictors of house price. This is supported by the small p-values (all below 0.001), showing strong evidence that each variable contributes meaningfully to the model. The coefficient for bedrooms is negative, which might seem counter intuitive at first but could be due to overlap with other variables (like square footage). In contrast, variables such as bathrooms, sqft_living, floors, view, condition, and grade all have positive effects on the price, meaning that an increase in any of these tends to increase the predicted price. Interestingly, yr_built has a negative coefficient, suggesting that newer houses (with higher years) are associated with higher prices. The model explains approximately 63.6% of the variation in house prices (R² = 0.6359), which is considered strong.
+
+2.  First, the Residuals vs Fitted and Scale-Location plots show a clear pattern where the spread of the residuals increases with the fitted values. This indicates heteroscedasticity, meaning the variance of the errors is not constant across all levels of the predicted values, therefore, a violation of one of the key linear regression assumptions. Second, the Q-Q plot suggests that the residuals are not normally distributed, particularly in the tails, which could affect the reliability of confidence intervals and hypothesis tests. Lastly, the Residuals vs Leverage plot shows a few observations with unusually high leverage and influence, suggesting that these outliers may be distorting the results of the model.
+
+```{r lm-original}
+lm1 <- lm(price ~ ., data = data)
+summary(lm1)
+
+# Residual analysis
+par(mfrow = c(2, 2))
+plot(lm1)
+```
+
+### (b) Log-transform Price and Compare
+
+2)  The transformation improved the distribution of residuals and helped stabilize the variance. The histogram and Q-Q plot of log(price) indicate a distribution much closer to normality compared to the original price variable, which was strongly right-skewed. Additionally, the residual diagnostic plots for the log-transformed model show less heteroscedasticity and more symmetrical residuals. The R-squared of the log-transformed model (0.6426) is slightly higher than the original model (0.6359), indicating a improvement in explanatory power. Furthermore, all variables remain statistically significant, suggesting that the transformation improves model. Overall, the model using log(price) provides a better fit and satisfies the assumptions of linear regression more effectively than the original model.
+
+```{r lm-log-price}
+# Distribution of original and log-transformed price
+p1 <- ggplot(data, aes(x = price)) + geom_histogram(bins = 50, fill = "steelblue") + ggtitle("Histogram of Price")
+p2 <- ggplot(data, aes(sample = price)) + stat_qq() + stat_qq_line() + ggtitle("QQ-Plot of Price")
+p3 <- ggplot(data, aes(x = log(price))) + geom_histogram(bins = 50, fill = "darkgreen") + ggtitle("Histogram of log(Price)")
+p4 <- ggplot(data, aes(sample = log(price))) + stat_qq() + stat_qq_line() + ggtitle("QQ-Plot of log(Price)")
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+
+# Fit model with log(price)
+data$log_price <- log(data$price)
+lm2 <- lm(log_price ~ bedrooms + bathrooms + sqft_living + floors + view + condition + grade + yr_built, data = data)
+summary(lm2)
+
+# Residual plots
+par(mfrow = c(2, 2))
+plot(lm2)
+```
+
+### (c) Model with squared terms
+
+1.  Both squared terms are highly statistically significant (p \< 2e-16), suggesting that the relationship between house price and these predictors is not only linear. The inclusion of these variables leads to a increase in model fit, with the R-squared improving from 0.6426 to 0.6492.
+
+```{r lm-squared}
+data$sq_yr_built <- data$yr_built^2
+data$sq_sqft_living <- data$sqft_living^2
+lm3 <- lm(log_price ~ bedrooms + bathrooms + sqft_living + floors + view + condition + grade + yr_built + sq_yr_built + sq_sqft_living, data = data)
+summary(lm3)
+
+# Residual plots
+par(mfrow = c(2, 2))
+plot(lm3)
+```
+
+### (d) Train-Test Split and Prediction
+```{r train-test}
+# Set seed for reproducibility
+set.seed(1122)
+
+# Split the dataset into training and testing sets
+train_index <- sample(1:nrow(data), 10806)  # Randomly select 10,806 rows for training
+train <- data[train_index, ]                # Training data
+test <- data[-train_index, ]                # Testing data (remaining rows)
+
+# Model from part (b): linear regression with basic predictors
+model_b <- lm(log_price ~ bedrooms + bathrooms + sqft_living + floors + view + condition + grade + yr_built, data = train)
+pred_b <- predict(model_b, newdata = test)                       # Predict log_price on test data
+mse_b <- mean((pred_b - test$log_price)^2)                      # Compute mean squared error for model_b
+
+# Model from part (c): extended model with additional squared features
+model_c <- lm(log_price ~ bedrooms + bathrooms + sqft_living + floors + view + condition + grade + yr_built + sq_yr_built + sq_sqft_living, data = train)
+pred_c <- predict(model_c, newdata = test)                      # Predict log_price on test data
+mse_c <- mean((pred_c - test$log_price)^2)                      # Compute mean squared error for model_c
+
+# Output both MSE values to compare model performance
+mse_b; mse_c
+
+```
