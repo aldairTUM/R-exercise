@@ -9,23 +9,48 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## Problem description
+
+In the following exercise we are going to analyse the Hitters dataset, which contains statistics on professional baseball players. The goal is to predict a player's salary based on their performance and career statistics from previous years.
+
+## Method
+
+In order to solve this exercise, we are going to take advantage of **penalized regression technique** using the **glmnet** package, which handle regulation linear models.
+
+1.  Ridge Regression
+
+-   Controlled by setting alpha = 0 in glmnet
+-   Adds a penalty on the squared magnitude of coefficients to the loss function: $$
+    \text{Loss} = \text{RSS} + \lambda \sum_{j=1}^{p} \beta_j^2
+    $$\
+
+2.  Lasso Regression
+
+-   Controlled by setting alpha = n in glmnet
+
+-   Add penalty on the absolute value of coefficients:
+
+$$
+  \text{Loss} = \text{RSS} + \lambda \sum_{j=1}^{p} |\beta_j|
+  $$
+
 ## 5(a) Load and Clean the Dataset
 
 ```{r}
-# Load required libraries
-library(tidyverse)
-library(glmnet)
-
-# Ensure reproducibility
-set.seed(1122)
-
-# Load Hitters dataset
-source('scripts/abs_path.r', chdir = TRUE)
-abs_path_dataset <- path_data("Hitters.csv")
-hitters <- read.csv(abs_path_dataset, sep = " ")
-
-# Remove rows with missing values
-hitters_clean <- hitters[complete.cases(hitters), ]
+  # Load required libraries
+  library(tidyverse)
+  library(glmnet)
+  
+  # Ensure reproducibility
+  set.seed(1122)
+  
+  # Load Hitters dataset
+  source('scripts/abs_path.r', chdir = TRUE)
+  abs_path_dataset <- path_data("Hitters.csv")
+  hitters <- read.csv(abs_path_dataset, sep = " ")
+  
+  # Remove rows with missing values
+  hitters_clean <- hitters[complete.cases(hitters), ]
 ```
 
 ## 5(b) Compute Condition Number of XtX

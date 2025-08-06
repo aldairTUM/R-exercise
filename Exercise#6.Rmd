@@ -17,31 +17,52 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## 6(a) Load Dataset and Fit Models
 
+The aim of this analysis was to investigate which variables best predict whether a person is likely to donate blood. Specifically, we examined the effect of two covariates — the number of previous donations (frequency) and the total amount of blood donated in cubic centimeters (amount). We used logistic regression models to analyze these relationships.
+
+Model 1: Predicting Donation Using Frequency, we first fit a logistic regression model using frequency (the total number of previous donations) as the predictor of future blood donation. The model revealed that the coefficient for frequency was 0.0794 with a standard error of 0.0151, and the result was highly statistically significant (p \< 0.001). This indicates that each additional past donation increases the odds of donating again in the future.
+
+Model 2: Predicting Donation Using Amount, in the second model, we replaced frequency with amount — the total volume of blood previously donated in cubic centimeters. The estimated coefficient for amount was 0.0003175 with a standard error of 0.0000606, also highly statistically significant (p \< 0.001). This result similarly suggests that donating more blood in the past is associated with a higher possibility of donating again.
+
+The relationship between frequency and amount helps us to better understand the connection between the two predictors, we plotted frequency against amount. The resulting scatterplot showed a strong, nearly perfect linear relationship, which is expected.This high correlation suggests that the two variables are collinear, meaning they carry essentially the same information. Using both variables in the same model would therefore be unnecessary and could lead to multicollinearity, which complicates model interpretation and inflates standard errors.
+
 ```{r}
 library(tidyverse)
 
 # Load dataset
-blood <- read.csv("data/Donors.csv", sep=",")
+source('scripts/abs_path.r', chdir = TRUE)
+abs_path_dataset <- path_data("Donors.csv")
+donors <- read.csv(abs_path_dataset, sep=",")
 
-# Check structure
-str(blood)
-names(blood)
+# 2. Fit logistic regression: donation ~ frequency
+model1 <- glm(donation ~ frequency, data = donors, family = binomial)
+summary(model1)
 
-# Logistic regression models
-model_freq <- glm(donation ~ frequency, data = blood, family = binomial())
-model_amt  <- glm(donation ~ amount, data = blood, family = binomial())
+# 3. Fit logistic regression: donation ~ amount
+model2 <- glm(donation ~ amount, data = donors, family = binomial)
+summary(model2)
 
-summary(model_freq)
-summary(model_amt)
-
-# Plot frequency vs amount
-ggplot(blood, aes(x = frequency, y = amount, color = factor(donation))) +
-  geom_point() +
-  theme_minimal() +
-  labs(title = "Frequency vs Amount Colored by Donation", color = "Donated")
+# 4. Plot frequency vs amount
+ggplot(donors, aes(x = frequency, y = amount)) +
+  geom_point(color = "darkorange", size = 2) +
+  labs(title = "Frequency vs Amount",
+       x = "Total Donations (frequency)",
+       y = "Total Blood Donated (amount in cc)") +
+  theme_minimal()
 ```
 
 ## 6(b) Fit Model with `recency` and All Link Functions
+
+We are going to continue exploring how the recency of donation affects their possibility to donate again, but now using all the different options available in *gml*, those are — logit, *probit* and complementary log-log (*cloglog*). The model structure will be the same as the previous analysis, using the same binary repose (donation) and single predictor (recency). Following I will describe a general idea if each of the link functions
+
+1)  **Logit**: assumes a *logitic* distribution of the latent variable.
+
+2)  **Probit**: assumes a normal distribution for the latent variable.
+
+3)  **Cloglog**: better in asymmetric relationship
+
+$$
+\text{link}(\mathbb{P}(\text{donation} = 1)) = \beta_0 + \beta_1 \cdot \text{recency}
+$$ Regarding the interpretation of the coefficients across all the methods we see a negative and statistically significant results, indicated that as the time from the last donation increase (months) the possibility for donation decreases. For instance, in the logit model, each additional month since the last donation reduces the log-odds of donating again by approximately -0.125. On probit model, the effect is smaller (-0.069) but still indicates the reduction the possibility of donate again, we can said the same with cloglog model -0.111. Even though, across the different liked functions due to their mathematical background, they are all telling that donate become less likely to donate the longer it has been since their las donation.
 
 ```{r}
 # Logit
@@ -59,6 +80,26 @@ summary(cloglog_model)
 ```
 
 ## 6(c) Classification and Evaluation
+
+Continue with logistic regression, now we are going to build a model that make the best prediction for the blood donations. To ensure the reliability and comparability of the results, the dataset was randomly splited into a training and a test set using a fixed random seed (set.seed(1122)). A total of 374 observations were randomly selected to form the training set, and the remaining data was used for testing.We fitted a logistic regression model on the training data with the binary response variable donation (1 if the person donates blood, 0 otherwise). The following four covariates were included in the model:
+
+1)  Recency: Number of months since the last donation
+
+2)  Frequency: Total number of past donations
+
+3)  Amount: Total volume of blood donated (in cubic centimeters)
+
+4)  Time: Number of months since the first donation
+
+Once the model was trained, it was used to predict the probability of donation for each individual in the test set. To translate these probabilities into binary classifications, we used a cutoff threshold of 0.5. That is, individuals with a predicted probability of 0.5 or higher were classified as likely to donate (1), and those below this threshold were classified as not likely to donate (0).
+
+To assess how well the model performed, we calculated the classification error (CE), which represents the proportion of wrongly classify observations in the test set. This metric is computed as the average of the absolute differences between the true labels and the predicted labels:
+
+$$
+CE = \frac{1}{n} \sum_{i=1}^{n} \left| y^{\text{test}}_i - \hat{y}^{\text{test}}_i \right|
+$$
+
+where $y_i^{\text{test}}$ is the actual donation status of the i-th person in the test set, and $\hat{y}_i^{\text{test}}$ is the corresponding predicted classification. The model achieved a classification error of approximately 0.217, meaning that about 21.7% of the test observations were incorrectly predicted, this can tell us that the model perform well, this can capture general patterns in the data and make predictions, however, we could not achieve a better performance (21%) that is mentioned in the exercise.
 
 ```{r}
 # Split data

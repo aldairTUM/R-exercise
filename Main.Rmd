@@ -10,7 +10,7 @@ Hello Professor Sebastian,
 
 Please run the following chunk of script, this will pre-install all the libraries that are necessary, and the libraries that are already in your computer will be skipped.
 
-Note: Please set your Session in Applied_Statistics_R_exercises/ the script take care absolute paths.
+Note: Please set your Session in **Applied_Statistics_R_exercises**/ the script take care absolute paths.
 
 Thanks
 
@@ -18,6 +18,7 @@ Aldair Leon
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+print(setwd(dirname(rstudioapi::getSourceEditorContext()$path)))
 source('scripts/install_libraries.r', chdir = TRUE)
 install_libraries()
 ```
