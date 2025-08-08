@@ -9,6 +9,7 @@
 path_data <-  function(data_set_name) {
   # Verify data set path
   full_path <- file.path("data", data_set_name)
+  print(full_path)
   tryCatch({
     file_path <- normalizePath(full_path, mustWork = TRUE)
     return(file_path)

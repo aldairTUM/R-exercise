@@ -9,31 +9,6 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Problem description
-
-In the following exercise we are going to analyse the Hitters dataset, which contains statistics on professional baseball players. The goal is to predict a player's salary based on their performance and career statistics from previous years.
-
-## Method
-
-In order to solve this exercise, we are going to take advantage of **penalized regression technique** using the **glmnet** package, which handle regulation linear models.
-
-1.  Ridge Regression
-
--   Controlled by setting alpha = 0 in glmnet
--   Adds a penalty on the squared magnitude of coefficients to the loss function: $$
-    \text{Loss} = \text{RSS} + \lambda \sum_{j=1}^{p} \beta_j^2
-    $$\
-
-2.  Lasso Regression
-
--   Controlled by setting alpha = n in glmnet
-
--   Add penalty on the absolute value of coefficients:
-
-$$
-  \text{Loss} = \text{RSS} + \lambda \sum_{j=1}^{p} |\beta_j|
-  $$
-
 ## 5(a) Load and Clean the Dataset
 
 ```{r}
@@ -45,8 +20,9 @@ $$
   set.seed(1122)
   
   # Load Hitters dataset
-  source('scripts/abs_path.r', chdir = TRUE)
-  abs_path_dataset <- path_data("Hitters.csv")
+  
+  setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+  abs_path_dataset <- file.path(setwd(dirname(rstudioapi::getSourceEditorContext()$path)), "data","Hitters.csv")
   hitters <- read.csv(abs_path_dataset, sep = " ")
   
   # Remove rows with missing values
@@ -54,8 +30,6 @@ $$
 ```
 
 ## 5(b) Compute Condition Number of XtX
-
-1.  The condition number of the design matrix 𝑋⊤𝑋 was computed to assess multicollinearity in the Hitters data-set. Initially, the unstandardized matrix produced an high condition number of *424,299,885*, indicating severe multicollinearity and instability in the regression coefficients. To address this, the design matrix was standardized such that each predictor had mean zero. This transformation reduced the condition number to around 6,131, improving the conditioning of the matrix. This suggests that standardizing the predictors not only makes them comparable in scale but also enhances numerical stability and reliability of the regression estimates.
 
 ```{r}
 # Create design matrix X and response vector y
@@ -82,8 +56,6 @@ condition_scaled
 ```
 
 ## 5(c) Compare OLS vs Ridge Regression (λ = 70)
-
-2.  When comparing the coefficient estimates from the ordinary least squares (OLS) model and the ridge regression model (with λ = 70), the OLS model produces coefficients that vary, with some being large in both the positive and negative values. This reflects OLS's sensitivity to multicollinearity, which can lead to unstable estimates and overfitting. In contrast, the coefficients from the ridge regression model are smaller and more evenly distributed. Ridge regression effectively pulls the coefficients closer to zero. This helps to reduce variance and makes the model more stable, especially when dealing with highly correlated predictors. As a result, ridge regression tends to generalize better to new data by avoiding the extreme in coefficient values that we often see with OLS.
 
 ```{r}
 # Fit ordinary least squares regression
@@ -146,8 +118,6 @@ lambda_opt
 
 ## 5(f) Final Ridge Model Coefficients
 
-3.  19 predictor variables were retained, each with a non-zero coefficient. This outcome is expected with ridge regression, as its L2 penalty shrinks coefficients but doesn’t eliminate them entirely. The variables with the largest influence on predicted salary were CRBI, CRuns, CHits, CHmRun, and CAtBat. On the other hand, variables like Errors and NewLeagueN had relatively small coefficients, indicating they contribute less to the model's predictions.
-
 ```{r}
 # Fit Ridge model on full data using optimal lambda
 final_ridge <- glmnet(X_scaled, y, alpha = 0, lambda = lambda_opt)
@@ -158,8 +128,6 @@ ridge_coefs
 ```
 
 ## 5(g) Lasso Regression
-
-4.  Only Hits, CRuns, and CRBI were assigned non-zero coefficients, indicating they are the most important features for predicting salary. This sparsity is a result of the L1 penalty used in lasso regression, which enables automatic variable selection. As a result, lasso not only helps with regularization but also improves model interpretation by identifying the most relevant predictors and excluding less informative ones.
 
 ```{r}
 # Function to compute Lasso test MSE for a given lambda

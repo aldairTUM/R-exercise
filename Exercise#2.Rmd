@@ -16,8 +16,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggplot2)
 
-source('scripts/abs_path.r', chdir = TRUE)
-abs_path_dataset <- path_data("winequality-white.csv")
+setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+abs_path_dataset <- file.path(setwd(dirname(rstudioapi::getSourceEditorContext()$path)), "data","winequality-white.csv")
 # Load data
 wine <- read.csv(abs_path_dataset, sep = ";")
 wine <- wine %>% mutate(good = ifelse(quality > 5, 1, 0))
