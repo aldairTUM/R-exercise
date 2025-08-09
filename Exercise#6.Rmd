@@ -14,7 +14,6 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 
 # Load dataset
-setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 abs_path_dataset <- file.path(setwd(dirname(rstudioapi::getSourceEditorContext()$path)), "data","Donors.csv")
 donors <- read.csv(abs_path_dataset, sep=",")
 
@@ -35,7 +34,7 @@ ggplot(donors, aes(x = frequency, y = amount)) +
   theme_minimal()
 ```
 
-## 6(b) Fit Model with `recency` and All Link Functions 
+## 6(b) Fit Model with `recency` and All Link Functions
 
 ```{r}
 # Logit

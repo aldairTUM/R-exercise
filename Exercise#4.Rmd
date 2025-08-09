@@ -17,7 +17,6 @@ library(gridExtra)
 ```{r load-data}
 # Load dataset
 
-setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 abs_path_dataset <- file.path(setwd(dirname(rstudioapi::getSourceEditorContext()$path)), "data","House prices.csv")
 data <- read.csv(abs_path_dataset)
 

@@ -16,7 +16,6 @@ Aldair Leon
 
 ```{r setup, include=TRUE}
 knitr::opts_chunk$set(echo = TRUE)
-setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 abs_path <- file.path(setwd(dirname(rstudioapi::getSourceEditorContext()$path)), "scripts")
 source(file.path(abs_path,"install_libraries.r"), chdir = TRUE)
 install_libraries()

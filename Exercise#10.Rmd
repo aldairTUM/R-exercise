@@ -1,0 +1,178 @@
+---
+title: "Execise 10: Time Series"
+author: "Aldair Leon"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+library(astsa)
+library(tidyverse)
+library(zoo)
+library(broom)
+library(forecast)  # for plotting helpers (optional)
+library(knitr)
+library(kableExtra)
+```
+
+
+
+# (a) AR(2) via linear regression (AR as regression)
+
+```{r ar2-lm}
+# Build lagged design
+y   <- cmort
+y_1 <- stats::lag(y, -1)
+y_2 <- stats::lag(y, -2)
+df_lm <- na.trim(cbind(y, y_1, y_2)) %>% as.data.frame()
+colnames(df_lm) <- c("y","y_1","y_2")
+
+# Fit AR(2) by linear regression
+fit_lm <- lm(y ~ y_1 + y_2, data = df_lm)
+summary(fit_lm)
+
+# White-noise variance estimate
+sigma2_lm <- mean(resid(fit_lm)^2)
+sigma2_lm
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r ar2-lm-forecast}
+# coefficients
+phi0 <- coef(fit_lm)[1]
+phi  <- as.numeric(coef(fit_lm)[c("y_1","y_2")])
+
+# last two observed values
+last1 <- tail(y, 1)
+last2 <- tail(y, 2)[1]
+
+h <- 4
+fc   <- numeric(h)
+xlag <- c(last1, last2)  # (X_t, X_{t-1})
+
+for (k in 1:h) {
+  fc[k] <- phi0 + phi[1]*xlag[1] + phi[2]*xlag[2]
+  # roll the lags forward
+  xlag <- c(fc[k], xlag[1])
+}
+
+# forecast variances using psi-weights
+psi <- ARMAtoMA(ar = phi, ma = NULL, lag.max = h-1)
+var_h <- sigma2_lm * cumsum(c(1, psi^2))  # sum_{j=0}^{h-1} psi_j^2 with psi_0 = 1
+se_h  <- sqrt(var_h)
+lower <- fc - 1.96*se_h
+upper <- fc + 1.96*se_h
+
+tibble(h = 1:h, forecast = fc, se = se_h, lower, upper) %>%
+  kable(digits = 2, caption = "AR(2) (LM) 4-step forecasts with 95% CI") %>% kable_styling()
+
+# Plot forecasts appended to series
+autoplot(cmort) +
+  autolayer(ts(fc, start = end(cmort)[1] + end(cmort)[2]/frequency(cmort) + (1:h)/frequency(cmort),
+               frequency = frequency(cmort)),
+            series = "Forecast (LM AR(2))") +
+  ggtitle("AR(2) via LM — 4-step Forecasts") +
+  theme(legend.position = "bottom")
+```
+
+# (c) AR(2) by **Yule–Walker** and comparison with (a)
+
+
+```{r ar2-yw}
+fit_yw <- ar.yw(cmort, order.max = 2, aic = FALSE)
+fit_yw$ar      # phi1, phi2 (YW)
+fit_yw$var.pred
+
+# Asymptotic SE for YW (approx.): Cov ≈ (1/n) * R^{-1},
+#   where R is Toeplitz matrix of sample autocorrelations  r1..rp
+p  <- 2
+n  <- length(cmort)
+r  <- acf(cmort, plot = FALSE, lag.max = p)$acf[2:(p+1)]
+R  <- toeplitz(c(1, r[1:(p-1)]))
+cov_phi <- solve(R) / n
+se_yw   <- sqrt(diag(cov_phi))
+tibble(Method = c("YW","YW"),
+       Coef = c("phi1","phi2"),
+       Estimate = fit_yw$ar,
+       SE = se_yw) %>% 
+  kable(digits = 4, caption = "YW estimates and asymptotic SE (approx.)") %>% 
+  kable_styling()
+```
+
+
+# (d) 4-week forecasts from the Yule–Walker AR(2)
+
+```{r ar2-yw-forecast}
+phi_yw <- as.numeric(fit_yw$ar)
+# iterate forecasts as before
+fc_yw   <- numeric(h)
+xlag_yw <- c(last1, last2)
+for (k in 1:h) {
+  fc_yw[k] <- (fit_yw$x.mean * (1 - sum(phi_yw))) + phi_yw[1]*xlag_yw[1] + phi_yw[2]*xlag_yw[2]
+  xlag_yw  <- c(fc_yw[k], xlag_yw[1])
+}
+
+# variance with psi-weights using YW sigma^2 (var.pred)
+psi_yw <- ARMAtoMA(ar = phi_yw, ma = NULL, lag.max = h-1)
+var_h_yw <- fit_yw$var.pred * cumsum(c(1, psi_yw^2))
+se_h_yw  <- sqrt(var_h_yw)
+lower_yw <- fc_yw - 1.96*se_h_yw
+upper_yw <- fc_yw + 1.96*se_h_yw
+
+tibble(h = 1:h, forecast = fc_yw, se = se_h_yw, lower = lower_yw, upper = upper_yw) %>% 
+  kable(digits = 2, caption = "AR(2) (YW) 4-step forecasts with 95% CI") %>%
+  kable_styling()
+```
+# (e) Compare SEs: LM vs Yule–Walker vs asymptotic
+
+```{r compare-ses}
+# SEs from LM (standard regression errors for phi1, phi2)
+se_lm <- coef(summary(fit_lm))[c("y_1","y_2"), "Std. Error"]
+
+compare_se <- tibble(
+  Coef = c("phi1","phi2"),
+  LM_SE  = unname(se_lm),
+  YW_SE  = se_yw
+)
+kable(compare_se, digits = 4, caption = "Standard errors comparison") %>% kable_styling()
+```
+# (f) Fit an ARMA(2,2) and assess if it improves fit
+
+
+```{r arma22}
+fit_arma22 <- arima(cmort, order = c(2,0,2))
+fit_arma22
+AIC_lm_ar2   <- AIC(fit_lm)         # via lm (not comparable to likelihood AIC)
+AIC_ar2_mle  <- AIC(arima(cmort, order = c(2,0,0)))  # ML AR(2) for AIC comparison
+AIC_arma22   <- AIC(fit_arma22)
+tibble(Model = c("AR(2) MLE", "ARMA(2,2) MLE"),
+       AIC   = c(AIC_ar2_mle, AIC_arma22)) %>% kable(digits = 1) %>% kable_styling()
+```
+# (g) Visual comparison of fitted values and forecasts
+
+```{r visual-compare}
+# In-sample fitted
+fitted_ar2_mle   <- fitted(arima(cmort, order = c(2,0,0)))
+fitted_arma22    <- fitted(fit_arma22)
+
+autoplot(cmort) +
+  autolayer(fitted_ar2_mle, series = "AR(2) fitted (MLE)") +
+  autolayer(fitted_arma22,  series = "ARMA(2,2) fitted (MLE)") +
+  ggtitle("In-sample fit: AR(2) vs ARMA(2,2)") +
+  theme(legend.position = "bottom")
+
+# 4-step forecasts from each model (MLE) for visual comparison
+fc_ar2  <- forecast::forecast(arima(cmort, order = c(2,0,0)), h = 4)
+fc_a22  <- forecast::forecast(fit_arma22, h = 4)
+
+autoplot(cmort) +
+  autolayer(fc_ar2$mean, series = "AR(2) MLE — mean") +
+  autolayer(fc_a22$mean, series = "ARMA(2,2) MLE — mean") +
+  ggtitle("Next 4 weeks: AR(2) vs ARMA(2,2) (means)") +
+  theme(legend.position = "bottom")
+```
+

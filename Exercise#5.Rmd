@@ -12,21 +12,20 @@ knitr::opts_chunk$set(echo = TRUE)
 ## 5(a) Load and Clean the Dataset
 
 ```{r}
-  # Load required libraries
-  library(tidyverse)
-  library(glmnet)
+# Load required libraries
+library(tidyverse)
+library(glmnet)
   
-  # Ensure reproducibility
-  set.seed(1122)
+# Ensure reproducibility
+set.seed(1122)
   
-  # Load Hitters dataset
+# Load Hitters dataset
   
-  setwd(dirname(rstudioapi::getSourceEditorContext()$path))
-  abs_path_dataset <- file.path(setwd(dirname(rstudioapi::getSourceEditorContext()$path)), "data","Hitters.csv")
-  hitters <- read.csv(abs_path_dataset, sep = " ")
+abs_path_dataset <- file.path(setwd(dirname(rstudioapi::getSourceEditorContext()$path)), "data","Hitters.csv")
+hitters <- read.csv(abs_path_dataset, sep = " ")
   
-  # Remove rows with missing values
-  hitters_clean <- hitters[complete.cases(hitters), ]
+# Remove rows with missing values
+hitters_clean <- hitters[complete.cases(hitters), ]
 ```
 
 ## 5(b) Compute Condition Number of XtX

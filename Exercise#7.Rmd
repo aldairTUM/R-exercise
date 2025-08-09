@@ -2,13 +2,6 @@
 title: "Exercise 7: Generalized Linear Models on Student Grades"
 author: "Aldair Leon"
 date: "2025-08-04"
-output:
-  html_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
-    theme: united
-    highlight: tango
 ---
 
 ```{r setup, include=FALSE}
@@ -20,7 +13,8 @@ library(ggplot2)
 # 1. Load and Explore Dataset
 
 ```{r}
-students <- read.csv("data/student-mat.csv", sep = ",")
+abs_path_dataset <- file.path(setwd(dirname(rstudioapi::getSourceEditorContext()$path)), "data","student-mat.csv")
+students <- read.csv(abs_path_dataset, sep = ",")
 str(students)
 summary(students[, c("G1", "G2", "G3")])
 ```
@@ -48,16 +42,21 @@ par(mfrow = c(1,1))
 students %>%
   pivot_longer(cols = c(G1, G2, G3), names_to = "Exam", values_to = "Grade") %>%
   ggplot(aes(sample = Grade)) +
-  stat_qq(distribution = qpois, dparams = list(lambda = mean(students$G1)), color = "steelblue") +
+  stat_qq(distribution = qpois, dparams = list(lambda = mean(students$G1)), color = "black") +
+  stat_qq_line(distribution = qpois, dparams = list(lambda = mean(students$G1)), color = "red") +
   facet_wrap(~ Exam) +
-  theme_minimal()
+    labs(
+    title = "Poisson Q–Q Plots",
+    x = "Theoretical Quantiles (Poisson)",
+    y = "Sample Quantiles"
+  )
 ```
 
 # 3. Fit Generalized Linear Model (Model 1)
 
 ```{r}
 # Model 1: All covariates for G1
-glm_model1 <- glm(G1 ~ ., data = students, family = gaussian())
+glm_model1 <- glm(G1 ~ . - G2 - G3, data = df, family = gaussian())
 summary(glm_model1)
 ```
 
@@ -71,13 +70,13 @@ deviance_resid <- residuals(glm_model1, type = "deviance")
 
 # Histograms
 par(mfrow = c(1, 2))
-hist(pearson_resid, main = "Pearson Residuals", col = "lightblue")
-hist(deviance_resid, main = "Deviance Residuals", col = "salmon")
+hist(pearson_resid, main = "Pearson Residuals", col = "blue")
+hist(deviance_resid, main = "Deviance Residuals", col = "red")
 par(mfrow = c(1, 1))
 
 # Normality check
 qqnorm(pearson_resid)
-qqline(pearson_resid, col = "blue")
+qqline(pearson_resid, col = "red")
 
 ```
 
@@ -88,6 +87,20 @@ qqline(pearson_resid, col = "blue")
 glm_model2 <- glm(G1 ~ sex + Fedu + studytime + failures + schoolsup + famsup + goout, 
                   data = students, family = gaussian())
 summary(glm_model2)
+# Pearson and Anscombe residuals
+# Residual Diagnostics
+pearson_resid <- residuals(glm_model2, type = "pearson")
+deviance_resid <- residuals(glm_model2, type = "deviance")
+
+# Histograms
+par(mfrow = c(1, 2))
+hist(pearson_resid, main = "Pearson Residuals", col = "blue")
+hist(deviance_resid, main = "Deviance Residuals", col = "red")
+par(mfrow = c(1, 1))
+
+# Normality check
+qqnorm(pearson_resid)
+qqline(pearson_resid, col = "red")
 
 # Analysis of deviance
 anova(glm_model2, glm_model1, test = "F")
@@ -101,6 +114,18 @@ glm_model3 <- glm(G1 ~ sex + Fedu + studytime + failures + schoolsup + famsup + 
                   data = students, family = gaussian())
 summary(glm_model3)
 
+pearson_resid <- residuals(glm_model3, type = "pearson")
+deviance_resid <- residuals(glm_model3, type = "deviance")
+
+# Histograms
+par(mfrow = c(1, 2))
+hist(pearson_resid, main = "Pearson Residuals", col = "blue")
+hist(deviance_resid, main = "Deviance Residuals", col = "red")
+par(mfrow = c(1, 1))
+
+# Normality check
+qqnorm(pearson_resid)
+qqline(pearson_resid, col = "red")
 # Compare AIC or adjusted R-squared
 AIC(glm_model2, glm_model3)
 ```
