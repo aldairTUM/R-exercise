@@ -37,46 +37,24 @@ sigma2_lm
 
 ```
 
-## Including Plots
+## (b) 4-week forecast + 95% CI using the (a) estimates
 
 You can also embed plots, for example:
 
 ```{r ar2-lm-forecast}
-# coefficients
-phi0 <- coef(fit_lm)[1]
-phi  <- as.numeric(coef(fit_lm)[c("y_1","y_2")])
+fit_css <- arima(y, order = c(2, 0, 0), include.mean = TRUE, method = "CSS")
+coef(fit_css)
 
-# last two observed values
-last1 <- tail(y, 1)
-last2 <- tail(y, 2)[1]
+pred_css <- predict(fit_css, n.ahead = 4)
+fc_lm <- tibble(
+  h   = 1:4,
+  mean = as.numeric(pred_css$pred),
+  lo95 = as.numeric(pred_css$pred - 1.96*pred_css$se),
+  hi95 = as.numeric(pred_css$pred + 1.96*pred_css$se),
+  method = "AR(2)-Reg (CSS)"
+)
+fc_lm
 
-h <- 4
-fc   <- numeric(h)
-xlag <- c(last1, last2)  # (X_t, X_{t-1})
-
-for (k in 1:h) {
-  fc[k] <- phi0 + phi[1]*xlag[1] + phi[2]*xlag[2]
-  # roll the lags forward
-  xlag <- c(fc[k], xlag[1])
-}
-
-# forecast variances using psi-weights
-psi <- ARMAtoMA(ar = phi, ma = NULL, lag.max = h-1)
-var_h <- sigma2_lm * cumsum(c(1, psi^2))  # sum_{j=0}^{h-1} psi_j^2 with psi_0 = 1
-se_h  <- sqrt(var_h)
-lower <- fc - 1.96*se_h
-upper <- fc + 1.96*se_h
-
-tibble(h = 1:h, forecast = fc, se = se_h, lower, upper) %>%
-  kable(digits = 2, caption = "AR(2) (LM) 4-step forecasts with 95% CI") %>% kable_styling()
-
-# Plot forecasts appended to series
-autoplot(cmort) +
-  autolayer(ts(fc, start = end(cmort)[1] + end(cmort)[2]/frequency(cmort) + (1:h)/frequency(cmort),
-               frequency = frequency(cmort)),
-            series = "Forecast (LM AR(2))") +
-  ggtitle("AR(2) via LM — 4-step Forecasts") +
-  theme(legend.position = "bottom")
 ```
 
 # (c) AR(2) by **Yule–Walker** and comparison with (a)
@@ -96,7 +74,7 @@ R  <- toeplitz(c(1, r[1:(p-1)]))
 cov_phi <- solve(R) / n
 se_yw   <- sqrt(diag(cov_phi))
 tibble(Method = c("YW","YW"),
-       Coef = c("phi1","phi2"),
+       Coef = c("y_1","y_2"),
        Estimate = fit_yw$ar,
        SE = se_yw) %>% 
   kable(digits = 4, caption = "YW estimates and asymptotic SE (approx.)") %>% 
@@ -130,11 +108,10 @@ tibble(h = 1:h, forecast = fc_yw, se = se_h_yw, lower = lower_yw, upper = upper_
 # (e) Compare SEs: LM vs Yule–Walker vs asymptotic
 
 ```{r compare-ses}
-# SEs from LM (standard regression errors for phi1, phi2)
 se_lm <- coef(summary(fit_lm))[c("y_1","y_2"), "Std. Error"]
 
 compare_se <- tibble(
-  Coef = c("phi1","phi2"),
+  Coef = c("y_1","y_2"),
   LM_SE  = unname(se_lm),
   YW_SE  = se_yw
 )
