@@ -4,13 +4,13 @@ author: "Aldair Leon"
 date: "2025-08-04"
 ---
 
-```{r setup, include=FALSE}
+```{r setup, echo=FALSE, include=FALSE }
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## 6(a) Load Dataset and Fit Models
 
-```{r}
+```{r echo=FALSE, include=TRUE }
 library(tidyverse)
 
 # Load dataset
@@ -36,7 +36,7 @@ ggplot(donors, aes(x = frequency, y = amount)) +
 
 ## 6(b) Fit Model with `recency` and All Link Functions
 
-```{r}
+```{r echo=FALSE, include=TRUE }
 # Logit
 logit_model <- glm(donation ~ recency, data = blood, family = binomial(link = "logit"))
 
@@ -53,7 +53,7 @@ summary(cloglog_model)
 
 ## 6(c) Classification and Evaluation
 
-```{r}
+```{r echo=FALSE, include=TRUE }
 # Split data
 set.seed(1122)
 train_idx <- sample(1:nrow(blood), 374)

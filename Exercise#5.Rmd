@@ -4,14 +4,14 @@ author: "Aldair Leon"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+```{r setup, echo=FALSE, include=TRUE }
 # Configure knitr to show R code in output
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## 5(a) Load and Clean the Dataset
 
-```{r}
+```{r echo=FALSE, include=TRUE }
 # Load required libraries
 library(tidyverse)
 library(glmnet)
@@ -30,7 +30,7 @@ hitters_clean <- hitters[complete.cases(hitters), ]
 
 ## 5(b) Compute Condition Number of XtX
 
-```{r}
+```{r echo=FALSE, include=TRUE }
 # Create design matrix X and response vector y
 X <- model.matrix(Salary ~ ., hitters_clean)[, -1]  # Remove intercept column
 y <- hitters_clean$Salary
@@ -56,7 +56,7 @@ condition_scaled
 
 ## 5(c) Compare OLS vs Ridge Regression (λ = 70)
 
-```{r}
+```{r echo=FALSE, include=TRUE }
 # Fit ordinary least squares regression
 lm_fit <- lm(Salary ~ ., data = hitters_clean)
 
@@ -80,7 +80,7 @@ df_compare
 
 ## 5(d) Train-Test Split
 
-```{r}
+```{r echo=FALSE, include=TRUE }
 # Determine training set size (70%)
 n <- nrow(hitters_clean)
 train_idx <- sample(1:n, size = floor(0.7 * n))
@@ -94,7 +94,7 @@ y_test <- y[-train_idx]
 
 ## 5(e) Ridge: MSE vs Lambda
 
-```{r}
+```{r echo=FALSE, include=TRUE }
 # Function to compute Ridge test MSE for a given lambda
 ridge_mse <- function(lambda) {
   fit <- glmnet(X_train, y_train, alpha = 0, lambda = lambda)
@@ -117,7 +117,7 @@ lambda_opt
 
 ## 5(f) Final Ridge Model Coefficients
 
-```{r}
+```{r echo=FALSE, include=TRUE }
 # Fit Ridge model on full data using optimal lambda
 final_ridge <- glmnet(X_scaled, y, alpha = 0, lambda = lambda_opt)
 
@@ -128,7 +128,7 @@ ridge_coefs
 
 ## 5(g) Lasso Regression
 
-```{r}
+```{r echo=FALSE, include=TRUE }
 # Function to compute Lasso test MSE for a given lambda
 lasso_mse <- function(lambda) {
   fit <- glmnet(X_train, y_train, alpha = 1, lambda = lambda)

@@ -19,7 +19,7 @@ library(kableExtra)
 
 # (a) AR(2) via linear regression (AR as regression)
 
-```{r ar2-lm}
+```{r echo=FALSE, include=FALSE }
 # Build lagged design
 y   <- cmort
 y_1 <- stats::lag(y, -1)
@@ -41,7 +41,7 @@ sigma2_lm
 
 You can also embed plots, for example:
 
-```{r ar2-lm-forecast}
+```{r echo=FALSE, include=FALSE }
 fit_css <- arima(y, order = c(2, 0, 0), include.mean = TRUE, method = "CSS")
 coef(fit_css)
 
@@ -60,7 +60,7 @@ fc_lm
 # (c) AR(2) by **Yule–Walker** and comparison with (a)
 
 
-```{r ar2-yw}
+```{r echo=FALSE, include=FALSE }
 fit_yw <- ar.yw(cmort, order.max = 2, aic = FALSE)
 fit_yw$ar      # phi1, phi2 (YW)
 fit_yw$var.pred
@@ -84,7 +84,7 @@ tibble(Method = c("YW","YW"),
 
 # (d) 4-week forecasts from the Yule–Walker AR(2)
 
-```{r ar2-yw-forecast}
+```{r echo=FALSE, include=FALSE }
 phi_yw <- as.numeric(fit_yw$ar)
 # iterate forecasts as before
 fc_yw   <- numeric(h)
@@ -107,7 +107,7 @@ tibble(h = 1:h, forecast = fc_yw, se = se_h_yw, lower = lower_yw, upper = upper_
 ```
 # (e) Compare SEs: LM vs Yule–Walker vs asymptotic
 
-```{r compare-ses}
+```{r echo=FALSE, include=FALSE }
 se_lm <- coef(summary(fit_lm))[c("y_1","y_2"), "Std. Error"]
 
 compare_se <- tibble(
@@ -120,7 +120,7 @@ kable(compare_se, digits = 4, caption = "Standard errors comparison") %>% kable_
 # (f) Fit an ARMA(2,2) and assess if it improves fit
 
 
-```{r arma22}
+```{r echo=FALSE, include=FALSE }
 fit_arma22 <- arima(cmort, order = c(2,0,2))
 fit_arma22
 AIC_lm_ar2   <- AIC(fit_lm)         # via lm (not comparable to likelihood AIC)
@@ -131,7 +131,7 @@ tibble(Model = c("AR(2) MLE", "ARMA(2,2) MLE"),
 ```
 # (g) Visual comparison of fitted values and forecasts
 
-```{r visual-compare}
+```{r echo=FALSE, include=FALSE }
 # In-sample fitted
 fitted_ar2_mle   <- fitted(arima(cmort, order = c(2,0,0)))
 fitted_arma22    <- fitted(fit_arma22)

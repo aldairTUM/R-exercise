@@ -56,7 +56,7 @@ students %>%
 
 ```{r}
 # Model 1: All covariates for G1
-glm_model1 <- glm(G1 ~ . - G2 - G3, data = df, family = gaussian())
+glm_model1 <- glm(G1 ~ . - G2 - G3, data = students, family = gaussian())
 summary(glm_model1)
 ```
 
